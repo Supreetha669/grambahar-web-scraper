@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Grambahar Web Scraper
 
 This project is a **Python Selenium-based web scraper** that extracts **product details, website logo, and contact information** from the Grambahar website:
@@ -116,3 +117,6 @@ python products_scraper.py
 
 All output files will be created inside the output/ directory.
 
+=======
+# grambahar-web-scraper
+>>>>>>> 1a750ad6cde3b98283c008f09f7ff8af09d566db
