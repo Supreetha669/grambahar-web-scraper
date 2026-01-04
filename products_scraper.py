@@ -25,7 +25,11 @@ PRODUCT_URLS = [
 os.makedirs("output", exist_ok=True)
 
 options = webdriver.ChromeOptions()
+options.add_argument("--headless=new")
+options.add_argument("--no-sandbox")
+options.add_argument("--disable-dev-shm-usage")
 options.add_argument("--window-size=1920,1080")
+
 
 driver = webdriver.Chrome(
     service=Service(ChromeDriverManager().install()),
@@ -54,8 +58,9 @@ time.sleep(3)
 
 # -------- LOGO IMAGE DOWNLOAD --------
 # Absolute output directory (define once at top of file)
-BASE_OUTPUT_DIR = r"C:\Users\Welcome\PycharmProjects\grambahar_web_scraper\output"
+BASE_OUTPUT_DIR = os.path.join(os.getcwd(), "output")
 os.makedirs(BASE_OUTPUT_DIR, exist_ok=True)
+
 
 logo_file_name = "logo.png"
 logo_path = os.path.join(BASE_OUTPUT_DIR, logo_file_name)
