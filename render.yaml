@@ -1,7 +1,0 @@
-services:
-  - type: worker
-    name: grambahar-scraper
-    runtime: python
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python products_scraper.py
