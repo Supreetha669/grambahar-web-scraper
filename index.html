@@ -1,59 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Grambahar Products</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 20px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
-      text-align: left;
-    }
-    th {
-      background-color: #f4f4f4;
-    }
-    tr:nth-child(even) {
-      background-color: #fafafa;
-    }
-  </style>
+  <title>Grambahar Scraper</title>
 </head>
 <body>
+  <h1>Grambahar Scraper (CI + CD)</h1>
 
-<h1>Grambahar Product Variants</h1>
+  <p>Latest scraped data:</p>
+  <ul>
+    <li><a href="output/product_variants.csv">Product Variants CSV</a></li>
+    <li><a href="output/contact_info.csv">Contact Info CSV</a></li>
+    <li><a href="output/site_logo.csv">Site Logo CSV</a></li>
+  </ul>
 
-<p>Data scraped automatically using Selenium & GitHub Actions.</p>
-
-<table id="csv-table"></table>
-
-<script>
-fetch("product_variants.csv")
-  .then(response => response.text())
-  .then(csv => {
-    const rows = csv.trim().split("\n").map(r => r.split(","));
-    const table = document.getElementById("csv-table");
-
-    rows.forEach((row, index) => {
-      const tr = document.createElement("tr");
-
-      row.forEach(cell => {
-        const el = document.createElement(index === 0 ? "th" : "td");
-        el.textContent = cell;
-        tr.appendChild(el);
-      });
-
-      table.appendChild(tr);
-    });
-  });
-</script>
-
+  <p>Scraper runs via GitHub Actions on Ubuntu.</p>
 </body>
 </html>
