@@ -168,16 +168,13 @@ with open("output/product_variants.csv", "w", newline="", encoding="utf-8") as f
     ])
     writer.writerows(product_rows)
 
-with open("output/site_logo.csv", "w", newline="", encoding="utf-8") as f:
-    site_logo_path = os.path.join("output", "site_logo.csv")
+site_logo_path = os.path.join("output", "site_logo.csv")
 
-    if os.path.exists(site_logo_path):
-        os.remove(site_logo_path)
+with open(site_logo_path, "w", newline="", encoding="utf-8") as f:
+    writer = csv.writer(f)
+    writer.writerow(["Website", "Logo File"])
+    writer.writerow(["Grambahar", logo_file_name])
 
-    with open(site_logo_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["Website", "Logo File"])
-        writer.writerow(["Grambahar", logo_file_name])
 
 
 with open("output/contact_info.csv", "w", newline="", encoding="utf-8") as f:
