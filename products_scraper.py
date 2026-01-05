@@ -141,7 +141,8 @@ for url in PRODUCT_URLS:
                 weight_kg,
                 selling_price,
                 original_price,
-                price_per_kg
+                price_per_kg,
+                url
             ])
 
             print("Scraped:", product_name, "|", variant)
@@ -164,8 +165,10 @@ with open("output/product_variants.csv", "w", newline="", encoding="utf-8") as f
         "Weight (kg)",
         "Selling Price (₹)",
         "Original Price (₹)",
-        "Price per kg (₹)"
+        "Price per kg (₹)",
+        "Product URL"
     ])
+
     writer.writerows(product_rows)
 
 site_logo_path = os.path.join("output", "site_logo.csv")
