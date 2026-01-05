@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write   # 👈 THIS IS REQUIRED
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
@@ -28,21 +31,11 @@ jobs:
         run: |
           python products_scraper.py
 
-      # -------- CD STARTS HERE --------
-      - name: Prepare docs folder
-        run: |
-          mkdir -p docs
-          rm -rf docs/*.csv docs/*.png
-
-      - name: Copy output to docs
-        run: |
-          cp output/*.csv docs/
-          cp output/logo.png docs/
-
-      - name: Commit and push docs
+      # ---- PUSH OUTPUT DIRECTORY ----
+      - name: Commit and push output folder
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add docs
-          git commit -m "Update scraped data" || echo "No changes"
+          git add output
+          git commit -m "Update scraper output" || echo "No changes"
           git push
