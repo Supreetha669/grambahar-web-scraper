@@ -89,7 +89,11 @@ function openGrambahar() {
 }
 
 function showOutput() {
+<<<<<<< Updated upstream
   fetch("product_variants.csv")
+=======
+  fetch("output/product_variants.csv")
+>>>>>>> Stashed changes
     .then(res => {
       if (!res.ok) throw new Error("CSV not found");
       return res.text();
