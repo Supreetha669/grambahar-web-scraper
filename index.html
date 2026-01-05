@@ -1,32 +1,59 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Grambahar Scraper Output</title>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
+  <title>Grambahar Products</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+    tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+  </style>
 </head>
-<body style="font-family: Arial; padding: 20px;">
-  <h2>Grambahar Scraper (CI + CD)</h2>
+<body>
 
-  <p>Latest scraped data:</p>
+<h1>Grambahar Product Variants</h1>
 
-  <ul>
-    <li>
-      <a href="https://supreetha669.github.io/grambahar-web-scraper/output/product_variants.csv" target="_blank">
-        Product Variants CSV
-      </a>
-    </li>
-    <li>
-      <a href="https://supreetha669.github.io/grambahar-web-scraper/output/contact_info.csv" target="_blank">
-        Contact Info CSV
-      </a>
-    </li>
-    <li>
-      <a href="https://supreetha669.github.io/grambahar-web-scraper/output/site_logo.csv" target="_blank">
-        Site Logo CSV
-      </a>
-    </li>
-  </ul>
+<p>Data scraped automatically using Selenium & GitHub Actions.</p>
 
-  <p>Scraper runs via GitHub Actions on Ubuntu.</p>
+<table id="csv-table"></table>
+
+<script>
+fetch("product_variants.csv")
+  .then(response => response.text())
+  .then(csv => {
+    const rows = csv.trim().split("\n").map(r => r.split(","));
+    const table = document.getElementById("csv-table");
+
+    rows.forEach((row, index) => {
+      const tr = document.createElement("tr");
+
+      row.forEach(cell => {
+        const el = document.createElement(index === 0 ? "th" : "td");
+        el.textContent = cell;
+        tr.appendChild(el);
+      });
+
+      table.appendChild(tr);
+    });
+  });
+</script>
+
 </body>
 </html>

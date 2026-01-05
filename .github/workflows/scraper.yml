@@ -29,9 +29,13 @@ jobs:
           python products_scraper.py
 
       # -------- CD STARTS HERE --------
+      - name: Prepare docs folder
+        run: |
+          mkdir -p docs
+          rm -rf docs/*.csv docs/*.png
+
       - name: Copy output to docs
         run: |
-          rm -rf docs/*
           cp output/*.csv docs/
           cp output/logo.png docs/
 
