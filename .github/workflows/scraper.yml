@@ -1,4 +1,4 @@
-name: Grambahar Web Scraper (Free Ubuntu)
+name: Grambahar Web Scraper (CI + CD)
 
 on:
   workflow_dispatch:
@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # CI STARTS
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -27,9 +28,3 @@ jobs:
       - name: Run scraper
         run: |
           python products_scraper.py
-
-      - name: Upload output files
-        uses: actions/upload-artifact@v4
-        with:
-          name: grambahar-output
-          path: output/
