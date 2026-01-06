@@ -1,29 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Grambahar Scraper UI</title>
+  <meta charset="UTF-8">
+  <title>Grambahar Scraper (CI + CD)</title>
 
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 30px;
-      background: #f9f9f9;
-    }
-
-    h1 {
-      margin-bottom: 10px;
+      padding: 40px;
     }
 
     button {
-      padding: 12px 18px;
-      font-size: 15px;
-      margin-right: 10px;
+      padding: 12px 22px;
+      font-size: 16px;
+      margin-right: 12px;
       cursor: pointer;
+      background: #0d6efd;
+      color: #fff;
       border: none;
-      background: #0b5ed7;
-      color: white;
-      border-radius: 5px;
+      border-radius: 6px;
     }
 
     button:hover {
@@ -33,29 +28,24 @@
     table {
       border-collapse: collapse;
       width: 100%;
-      margin-top: 25px;
+      margin-top: 30px;
       display: none;
-      background: white;
     }
 
     th, td {
-      border: 1px solid #ddd;
+      border: 1px solid #ccc;
       padding: 10px;
       text-align: left;
     }
 
     th {
-      background-color: #f2f2f2;
+      background: #f3f3f3;
     }
 
     a {
-      color: #0b5ed7;
+      color: #0d6efd;
       text-decoration: none;
-      font-weight: bold;
-    }
-
-    a:hover {
-      text-decoration: underline;
+      font-weight: 500;
     }
   </style>
 </head>
@@ -76,7 +66,7 @@
       <th>Weight (gm)</th>
       <th>Weight (kg)</th>
       <th>Selling Price (₹)</th>
-      <th>Price per kg (₹)</th>
+      <th>Price / kg (₹)</th>
       <th>Product Page</th>
     </tr>
   </thead>
@@ -89,30 +79,20 @@ function openGrambahar() {
 }
 
 function showOutput() {
-<<<<<<< Updated upstream
   fetch("product_variants.csv")
-=======
-  fetch("output/product_variants.csv")
->>>>>>> Stashed changes
-    .then(res => {
-      if (!res.ok) throw new Error("CSV not found");
-      return res.text();
-    })
+    .then(res => res.text())
     .then(csv => {
-      const rows = csv.split("\n").slice(1);
-      const table = document.getElementById("dataTable");
+      const rows = csv.trim().split("\n").slice(1);
       const body = document.getElementById("tableBody");
+      const table = document.getElementById("dataTable");
 
       body.innerHTML = "";
       table.style.display = "table";
 
       rows.forEach(row => {
-        if (!row.trim()) return;
-
         const cols = row.split(",");
 
         const tr = document.createElement("tr");
-
         tr.innerHTML = `
           <td>${cols[0]}</td>
           <td>${cols[1]}</td>
@@ -120,18 +100,12 @@ function showOutput() {
           <td>${cols[3]}</td>
           <td>${cols[4]}</td>
           <td>${cols[6]}</td>
-          <td>
-            <a href="${cols[7]}" target="_blank">View</a>
-          </td>
+          <td><a href="${cols[7]}" target="_blank">View Product</a></td>
         `;
-
         body.appendChild(tr);
       });
     })
-    .catch(err => {
-      alert("CSV not loaded. Make sure product_variants.csv is in root.");
-      console.error(err);
-    });
+    .catch(err => alert("CSV not found. Deploy output correctly."));
 }
 </script>
 
