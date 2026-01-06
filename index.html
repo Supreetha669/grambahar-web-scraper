@@ -79,41 +79,32 @@ function openGrambahar() {
 }
 
 function showOutput() {
-  fetch("output/product_variants.csv")
-    .then(res => res.text())
-    .then(csv => {
-      const rows = csv.trim().split("\n").slice(1);
+  fetch("http://127.0.0.1:8000/products")   <!-- 🔑 API ENDPOINT -->
+    .then(res => res.json())
+    .then(data => {
       const body = document.getElementById("tableBody");
       const table = document.getElementById("dataTable");
 
       body.innerHTML = "";
       table.style.display = "table";
 
-      rows.forEach(row => {
-        const cols = row.split(",");
-
-        const productName = cols[0];
-        const variant = cols[1];
-        const weightGm = cols[2];
-        const weightKg = cols[3];
-        const sellingPrice = cols[4];
-        const pricePerKg = cols[6];
-        const productUrl = cols[cols.length - 1].trim();
-
+      data.products.forEach(p => {
         const tr = document.createElement("tr");
+
         tr.innerHTML = `
-          <td><a href="${productUrl}" target="_blank">${productName}</a></td>
-          <td>${variant}</td>
-          <td>${weightGm}</td>
-          <td>${weightKg}</td>
-          <td>${sellingPrice}</td>
-          <td>${pricePerKg}</td>
-          <td><a href="${productUrl}" target="_blank">View Product</a></td>
+          <td><a href="${p["Product URL"]}" target="_blank">${p["Product Name"]}</a></td>
+          <td>${p["Variant"]}</td>
+          <td>${p["Weight (gm)"]}</td>
+          <td>${p["Weight (kg)"]}</td>
+          <td>${p["Selling Price (₹)"]}</td>
+          <td>${p["Price per kg (₹)"]}</td>
+          <td><a href="${p["Product URL"]}" target="_blank">View Product</a></td>
         `;
+
         body.appendChild(tr);
       });
     })
-    .catch(() => alert("CSV file not found"));
+    .catch(() => alert("API not reachable. Is FastAPI running?"));
 }
 </script>
 
