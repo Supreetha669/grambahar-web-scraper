@@ -4,205 +4,118 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
-import csv
-import re
-import time
-import os
-import requests
-from urllib.parse import urlparse, parse_qs, unquote
+import csv, time, os, re, requests
+from urllib.parse import urljoin
 
-PRODUCT_URLS = [
-    "https://grambahar.com/products/jaggery-combo-pack-of-4-2900-gm",
-    "https://grambahar.com/products/jaggery-combo-pack-of-2-1450-gm",
-    "https://grambahar.com/products/nolen-gur-pack-of-4-3000g",
-    "https://grambahar.com/products/nolen-gur-pack-of-2-1500g",
-    "https://grambahar.com/products/nolen-gur",
-    "https://grambahar.com/products/patali-gur-pack-of-2-1400g",
-    "https://grambahar.com/products/patali-gur-pack-of-4-2800g",
-    "https://grambahar.com/products/patali-gur-pack-of-1-700-g"
-]
+BASE_URL = "https://grambahar.com"
+PRODUCTS_PAGE = "https://grambahar.com/products"
+OUTPUT_DIR = "output"
+MAX_PRODUCTS = 8
 
-os.makedirs("output", exist_ok=True)
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# ------------------ DRIVER SETUP ------------------
 options = webdriver.ChromeOptions()
 options.add_argument("--headless=new")
+options.add_argument("--window-size=1920,1080")
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
-options.add_argument("--window-size=1920,1080")
-
 
 driver = webdriver.Chrome(
     service=Service(ChromeDriverManager().install()),
     options=options
 )
-
 wait = WebDriverWait(driver, 20)
 
-product_rows = []
-emails = []
-phones = []
+# ------------------ HELPERS ------------------
+def parse_weight(text):
+    m = re.search(r"(\d+)\s*(kg|gm)", text.lower())
+    if not m:
+        return 0
+    v, u = m.groups()
+    return int(v) * 1000 if u == "kg" else int(v)
 
-def parse_weight_to_grams(text):
-    matches = re.findall(r"(\d+(\.\d+)?)\s*(kg|gm)", text.lower())
-    total = 0
-    for value, _, unit in matches:
-        value = float(value)
-        total += value * 1000 if unit == "kg" else value
-    return int(total)
+# ------------------ STEP 1: OPEN PRODUCTS PAGE ------------------
+print("🔍 Collecting product URLs...")
+driver.get(PRODUCTS_PAGE)
+time.sleep(4)
 
-# --------------------------------------------------
-# LOAD FIRST PAGE (FOR LOGO + CONTACT)
-# --------------------------------------------------
-driver.get(PRODUCT_URLS[0])
+links = driver.find_elements(By.XPATH, "//a[contains(@href,'/products/')]")
+product_urls = []
+
+for a in links:
+    href = a.get_attribute("href")
+    if href and "/products/" in href:
+        if href not in product_urls:
+            product_urls.append(href)
+    if len(product_urls) == MAX_PRODUCTS:
+        break
+
+print(f"✅ Collected {len(product_urls)} product URLs")
+
+# ------------------ LOGO + CONTACT ------------------
+driver.get(BASE_URL)
 time.sleep(3)
 
-# -------- LOGO IMAGE DOWNLOAD --------
-# Absolute output directory (define once at top of file)
-BASE_OUTPUT_DIR = os.path.join(os.getcwd(), "output")
-os.makedirs(BASE_OUTPUT_DIR, exist_ok=True)
-
-
-logo_file_name = "logo.png"
-logo_path = os.path.join(BASE_OUTPUT_DIR, logo_file_name)
-
+# Logo
 try:
-    logo_img = driver.find_element(
-        By.XPATH, "//img[contains(@alt,'Logo') or contains(@title,'Logo')]"
-    )
+    logo = driver.find_element(By.XPATH, "//img[contains(@alt,'Logo')]")
+    logo_url = logo.get_attribute("src")
+    logo_data = requests.get(logo_url).content
+    with open(f"{OUTPUT_DIR}/logo.png", "wb") as f:
+        f.write(logo_data)
+except:
+    print("⚠️ Logo not found")
 
-    src = logo_img.get_attribute("src")
+# Contact info
+body_text = driver.find_element(By.TAG_NAME, "body").text
+emails = set(re.findall(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}", body_text))
+phones = set(re.findall(r"\+91[-\s]?\d{10}|\b\d{10}\b", body_text))
 
-    # Handle Next.js optimized image URL
-    if "_next/image" in src:
-        parsed = urlparse(src)
-        real_path = unquote(parse_qs(parsed.query)["url"][0])
-        logo_url = "https://grambahar.com" + real_path
-    else:
-        logo_url = src if src.startswith("http") else "https://grambahar.com" + src
+# ------------------ STEP 2: SCRAPE PRODUCTS ------------------
+rows = []
 
-    response = requests.get(logo_url, timeout=20)
-    response.raise_for_status()
-
-    with open(logo_path, "wb") as f:
-        f.write(response.content)
-
-    print("Logo image saved:", logo_path)
-
-except Exception as e:
-    print("Logo extraction failed:", e)
-
-
-# -------- CONTACT INFO --------
-page_text = driver.find_element(By.TAG_NAME, "body").text
-
-emails = list(set(re.findall(
-    r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", page_text
-)))
-
-phones = list(set(re.findall(
-    r"(\+91[-\s]?\d{10}|\b\d{10}\b)", page_text
-)))
-
-# --------------------------------------------------
-# PRODUCT SCRAPING
-# --------------------------------------------------
-# --------------------------------------------------
-# PRODUCT SCRAPING (EXACTLY 8 PRODUCTS)
-# --------------------------------------------------
-for url in PRODUCT_URLS:
+for url in product_urls:
     driver.get(url)
-    time.sleep(4)
+    time.sleep(3)
 
     try:
-        main = wait.until(
-            EC.presence_of_element_located((By.XPATH, '//*[@id="__next"]/main'))
-        )
+        main = wait.until(EC.presence_of_element_located((By.TAG_NAME, "main")))
+        name = main.find_element(By.TAG_NAME, "h1").text.strip()
 
-        # Product name
-        product_name = main.find_element(By.TAG_NAME, "h1").text.strip()
-
-        # Variant buttons
-        variant_buttons = main.find_elements(
-            By.XPATH, ".//button[.//span[contains(text(),'gm') or contains(text(),'kg')]]"
-        )
-
-        if not variant_buttons:
-            print("❌ No variants found:", url)
-            continue
-
-        # ✅ TAKE ONLY FIRST VARIANT
-        spans = variant_buttons[0].find_elements(By.TAG_NAME, "span")
-
-        if len(spans) < 3:
-            print("❌ Invalid variant data:", url)
-            continue
+        btns = main.find_elements(By.XPATH, ".//button[.//span[contains(text(),'gm')]]")
+        spans = btns[0].find_elements(By.TAG_NAME, "span")
 
         variant = spans[0].text.strip()
-        original_price = float(
-            spans[1].text.replace("₹", "").replace(",", "").strip()
-        )
-        selling_price = float(
-            spans[2].text.replace("₹", "").replace(",", "").strip()
-        )
+        mrp = float(spans[1].text.replace("₹","").replace(",",""))
+        price = float(spans[2].text.replace("₹","").replace(",",""))
 
-        weight_gm = parse_weight_to_grams(variant)
-        weight_kg = round(weight_gm / 1000, 3)
+        gm = parse_weight(variant)
+        kg = round(gm / 1000, 2)
+        perkg = round(price / kg, 2) if kg else 0
 
-        price_per_kg = round(
-            selling_price / weight_kg, 2
-        ) if weight_kg > 0 else 0
-
-        product_rows.append([
-            product_name,
-            variant,
-            weight_gm,
-            weight_kg,
-            selling_price,
-            original_price,
-            price_per_kg,
-            url
+        rows.append([
+            name, variant, gm, kg, price, mrp, perkg, url
         ])
 
-        print("✅ Added product:", product_name)
+        print("✅ Scraped:", name)
 
     except Exception as e:
         print("❌ Failed:", url, e)
 
-# --------------------------------------------------
-# SAVE CSV FILES
-# --------------------------------------------------
+driver.quit()
 
-with open("output/product_variants.csv", "w", newline="", encoding="utf-8") as f:
-    writer = csv.writer(f)
-    writer.writerow([
-        "Product Name",
-        "Variant",
-        "Weight (gm)",
-        "Weight (kg)",
-        "Selling Price (₹)",
-        "Original Price (₹)",
-        "Price per kg (₹)",
-        "Product URL"
+# ------------------ SAVE CSVs ------------------
+with open(f"{OUTPUT_DIR}/product_variants.csv", "w", newline="", encoding="utf-8") as f:
+    w = csv.writer(f)
+    w.writerow([
+        "Product Name","Variant","Weight (gm)","Weight (kg)",
+        "Selling Price (₹)","Original Price (₹)",
+        "Price per kg (₹)","Product URL"
     ])
+    w.writerows(rows)
 
-    writer.writerows(product_rows)
+with open(f"{OUTPUT_DIR}/contact_info.csv","w",newline="",encoding="utf-8") as f:
+    csv.writer(f).writerow(["Grambahar", ", ".join(emails), ", ".join(phones)])
 
-site_logo_path = os.path.join("output", "site_logo.csv")
-
-with open(site_logo_path, "w", newline="", encoding="utf-8") as f:
-    writer = csv.writer(f)
-    writer.writerow(["Website", "Logo File"])
-    writer.writerow(["Grambahar", logo_file_name])
-
-
-
-with open("output/contact_info.csv", "w", newline="", encoding="utf-8") as f:
-    writer = csv.writer(f)
-    writer.writerow(["Website", "Emails", "Phone Numbers"])
-    writer.writerow([
-        "Grambahar",
-        ", ".join(emails),
-        ", ".join(phones)
-    ])
-
-print("\nSUCCESS: All CSV files and logo image created")
+print("\n🎉 DONE: Website → Products → CSV")
