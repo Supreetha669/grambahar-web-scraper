@@ -106,51 +106,67 @@ phones = list(set(re.findall(
 # --------------------------------------------------
 # PRODUCT SCRAPING
 # --------------------------------------------------
+# --------------------------------------------------
+# PRODUCT SCRAPING (EXACTLY 8 PRODUCTS)
+# --------------------------------------------------
 for url in PRODUCT_URLS:
     driver.get(url)
-    time.sleep(3)
+    time.sleep(4)
 
     try:
         main = wait.until(
             EC.presence_of_element_located((By.XPATH, '//*[@id="__next"]/main'))
         )
 
+        # Product name
         product_name = main.find_element(By.TAG_NAME, "h1").text.strip()
 
+        # Variant buttons
         variant_buttons = main.find_elements(
             By.XPATH, ".//button[.//span[contains(text(),'gm') or contains(text(),'kg')]]"
         )
 
-        for btn in variant_buttons:
-            spans = btn.find_elements(By.TAG_NAME, "span")
-            if len(spans) < 3:
-                continue
+        if not variant_buttons:
+            print("❌ No variants found:", url)
+            continue
 
-            variant = spans[0].text.strip()
-            original_price = float(spans[1].text.replace("₹", "").replace(",", "").strip())
-            selling_price = float(spans[2].text.replace("₹", "").replace(",", "").strip())
+        # ✅ TAKE ONLY FIRST VARIANT
+        spans = variant_buttons[0].find_elements(By.TAG_NAME, "span")
 
-            weight_gm = parse_weight_to_grams(variant)
-            weight_kg = round(weight_gm / 1000, 3)
-            price_per_kg = round(selling_price / weight_kg, 2)
+        if len(spans) < 3:
+            print("❌ Invalid variant data:", url)
+            continue
 
-            product_rows.append([
-                product_name,
-                variant,
-                weight_gm,
-                weight_kg,
-                selling_price,
-                original_price,
-                price_per_kg,
-                url
-            ])
+        variant = spans[0].text.strip()
+        original_price = float(
+            spans[1].text.replace("₹", "").replace(",", "").strip()
+        )
+        selling_price = float(
+            spans[2].text.replace("₹", "").replace(",", "").strip()
+        )
 
-            print("Scraped:", product_name, "|", variant)
+        weight_gm = parse_weight_to_grams(variant)
+        weight_kg = round(weight_gm / 1000, 3)
+
+        price_per_kg = round(
+            selling_price / weight_kg, 2
+        ) if weight_kg > 0 else 0
+
+        product_rows.append([
+            product_name,
+            variant,
+            weight_gm,
+            weight_kg,
+            selling_price,
+            original_price,
+            price_per_kg,
+            url
+        ])
+
+        print("✅ Added product:", product_name)
 
     except Exception as e:
-        print("Failed:", url, e)
-
-driver.quit()
+        print("❌ Failed:", url, e)
 
 # --------------------------------------------------
 # SAVE CSV FILES

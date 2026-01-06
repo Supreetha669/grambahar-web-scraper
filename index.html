@@ -98,8 +98,6 @@ function showOutput() {
         const weightKg = cols[3];
         const sellingPrice = cols[4];
         const pricePerKg = cols[6];
-
-        // ✅ LAST COLUMN ALWAYS PRODUCT URL
         const productUrl = cols[cols.length - 1].trim();
 
         const tr = document.createElement("tr");
@@ -112,14 +110,13 @@ function showOutput() {
           <td>${pricePerKg}</td>
           <td><a href="${productUrl}" target="_blank">View Product</a></td>
         `;
-
-
         body.appendChild(tr);
       });
     })
     .catch(() => alert("CSV file not found"));
 }
 </script>
+
 
 </body>
 </html>
