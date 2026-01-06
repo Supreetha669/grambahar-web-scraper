@@ -79,7 +79,7 @@ function openGrambahar() {
 }
 
 function showOutput() {
-  fetch("http://127.0.0.1:8000/products")   <!-- 🔑 API ENDPOINT -->
+  fetch("http://127.0.0.1:8000/products")
     .then(res => res.json())
     .then(data => {
       const body = document.getElementById("tableBody");
@@ -88,6 +88,7 @@ function showOutput() {
       body.innerHTML = "";
       table.style.display = "table";
 
+      // assuming FastAPI returns: { "products": [ { "Product Name": "...", ... } ] }
       data.products.forEach(p => {
         const tr = document.createElement("tr");
 
@@ -107,7 +108,6 @@ function showOutput() {
     .catch(() => alert("API not reachable. Is FastAPI running?"));
 }
 </script>
-
 
 </body>
 </html>
