@@ -1,40 +1,61 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Grambahar Scraper</title>
+  <meta charset="UTF-8" />
+  <title>Grambahar Scraper UI</title>
 
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 20px;
+      padding: 30px;
+      background: #f9f9f9;
     }
 
-    input {
-      padding: 8px;
-      width: 300px;
-      margin-bottom: 15px;
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    button {
+      padding: 12px 18px;
+      font-size: 15px;
+      margin-right: 10px;
+      cursor: pointer;
+      border: none;
+      background: #0b5ed7;
+      color: white;
+      border-radius: 5px;
+    }
+
+    button:hover {
+      background: #084298;
     }
 
     table {
       border-collapse: collapse;
       width: 100%;
-      margin-top: 10px;
+      margin-top: 25px;
+      display: none;
+      background: white;
     }
 
     th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
+      border: 1px solid #ddd;
+      padding: 10px;
       text-align: left;
     }
 
     th {
       background-color: #f2f2f2;
-      cursor: pointer;
     }
 
-    tr:nth-child(even) {
-      background-color: #fafafa;
+    a {
+      color: #0b5ed7;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    a:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
@@ -42,92 +63,73 @@
 <body>
 
 <h1>Grambahar Scraper (CI + CD)</h1>
+<p>Scraped product data with live links.</p>
 
-<p>Latest scraped data:</p>
-<ul>
-  <li><a href="product_variants.csv" download>Download Product Variants CSV</a></li>
-  <li><a href="contact_info.csv" download>Download Contact Info CSV</a></li>
-  <li><a href="site_logo.csv" download>Download Site Logo CSV</a></li>
-</ul>
+<button onclick="showOutput()">Show Extracted Output</button>
+<button onclick="openGrambahar()">Open Grambahar Website</button>
 
-<h2>Product Variants</h2>
-
-<input
-  type="text"
-  id="searchInput"
-  placeholder="Search products..."
-  onkeyup="filterTable()"
-/>
-
-<table id="csvTable"></table>
+<table id="dataTable">
+  <thead>
+    <tr>
+      <th>Product Name</th>
+      <th>Variant</th>
+      <th>Weight (gm)</th>
+      <th>Weight (kg)</th>
+      <th>Selling Price (₹)</th>
+      <th>Price per kg (₹)</th>
+      <th>Product Page</th>
+    </tr>
+  </thead>
+  <tbody id="tableBody"></tbody>
+</table>
 
 <script>
-let tableData = [];
-let sortDirection = true;
+function openGrambahar() {
+  window.open("https://grambahar.com", "_blank");
+}
 
-fetch("product_variants.csv")
-  .then(res => res.text())
-  .then(text => {
-    tableData = text.trim().split("\n").map(row => row.split(","));
-    renderTable(tableData);
-  });
+function showOutput() {
+  fetch("product_variants.csv")
+    .then(res => {
+      if (!res.ok) throw new Error("CSV not found");
+      return res.text();
+    })
+    .then(csv => {
+      const rows = csv.split("\n").slice(1);
+      const table = document.getElementById("dataTable");
+      const body = document.getElementById("tableBody");
 
-function renderTable(data) {
-  const table = document.getElementById("csvTable");
-  table.innerHTML = "";
+      body.innerHTML = "";
+      table.style.display = "table";
 
-  data.forEach((row, rowIndex) => {
-    const tr = document.createElement("tr");
+      rows.forEach(row => {
+        if (!row.trim()) return;
 
-    row.forEach((cell, colIndex) => {
-      const el = document.createElement(rowIndex === 0 ? "th" : "td");
-      el.textContent = cell;
+        const cols = row.split(",");
 
-      if (rowIndex === 0) {
-        el.onclick = () => sortTable(colIndex);
-      }
+        const tr = document.createElement("tr");
 
-      tr.appendChild(el);
+        tr.innerHTML = `
+          <td>${cols[0]}</td>
+          <td>${cols[1]}</td>
+          <td>${cols[2]}</td>
+          <td>${cols[3]}</td>
+          <td>${cols[4]}</td>
+          <td>${cols[6]}</td>
+          <td>
+            <a href="${cols[7]}" target="_blank">View</a>
+          </td>
+        `;
+
+        body.appendChild(tr);
+      });
+    })
+    .catch(err => {
+      alert("CSV not loaded. Make sure product_variants.csv is in root.");
+      console.error(err);
     });
-
-    table.appendChild(tr);
-  });
-}
-
-function filterTable() {
-  const query = document.getElementById("searchInput").value.toLowerCase();
-  const filtered = [tableData[0]];
-
-  tableData.slice(1).forEach(row => {
-    if (row.join(" ").toLowerCase().includes(query)) {
-      filtered.push(row);
-    }
-  });
-
-  renderTable(filtered);
-}
-
-function sortTable(colIndex) {
-  const header = tableData[0];
-  const rows = tableData.slice(1);
-
-  rows.sort((a, b) => {
-    const x = a[colIndex];
-    const y = b[colIndex];
-
-    return sortDirection
-      ? x.localeCompare(y, undefined, { numeric: true })
-      : y.localeCompare(x, undefined, { numeric: true });
-  });
-
-  sortDirection = !sortDirection;
-  renderTable([header, ...rows]);
 }
 </script>
-
-<p style="margin-top:20px;">
-  Scraper runs automatically via GitHub Actions on Ubuntu.
-</p>
 
 </body>
 </html>
