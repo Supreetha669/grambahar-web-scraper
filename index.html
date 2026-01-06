@@ -53,7 +53,7 @@
 <body>
 
 <h1>Grambahar Scraper (CI + CD)</h1>
-<p>Scraped product data with live links.</p>
+<p>Scraped product data with live product links.</p>
 
 <button onclick="showOutput()">Show Extracted Output</button>
 <button onclick="openGrambahar()">Open Grambahar Website</button>
@@ -82,29 +82,25 @@ function showOutput() {
   fetch("product_variants.csv")
     .then(res => res.text())
     .then(csv => {
-      const lines = csv.trim().split("\n").slice(1);
+      const rows = csv.trim().split("\n").slice(1);
       const body = document.getElementById("tableBody");
       const table = document.getElementById("dataTable");
 
       body.innerHTML = "";
       table.style.display = "table";
 
-      lines.forEach(line => {
-        const parts = line
-          .match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g)
-          .map(v => v.replace(/^"|"$/g, ""));
+      rows.forEach(row => {
+        const cols = row.split(",");
 
-        const productName = parts[0];
-        const variant = parts[1];
-        const weightGm = parts[2];
-        const weightKg = parts[3];
-        const sellingPrice = parts[4];
-        const pricePerKg = parts[6];
+        const productName = cols[0];
+        const variant = cols[1];
+        const weightGm = cols[2];
+        const weightKg = cols[3];
+        const sellingPrice = cols[4];
+        const pricePerKg = cols[6];
 
-        const productUrl =
-          parts[parts.length - 1] && parts[parts.length - 1].startsWith("http")
-            ? parts[parts.length - 1]
-            : "https://grambahar.com/products";
+        // ✅ LAST COLUMN ALWAYS PRODUCT URL
+        const productUrl = cols[cols.length - 1].trim();
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -116,17 +112,14 @@ function showOutput() {
           <td>${pricePerKg}</td>
           <td><a href="${productUrl}" target="_blank">View Product</a></td>
         `;
+
+
         body.appendChild(tr);
       });
     })
-    .catch(err => {
-      console.error(err);
-      alert("Failed to load CSV file");
-    });
+    .catch(() => alert("CSV file not found"));
 }
 </script>
-
-
 
 </body>
 </html>
