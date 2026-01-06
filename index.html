@@ -82,32 +82,51 @@ function showOutput() {
   fetch("product_variants.csv")
     .then(res => res.text())
     .then(csv => {
-      const rows = csv.trim().split("\n").slice(1);
+      const lines = csv.trim().split("\n").slice(1);
       const body = document.getElementById("tableBody");
       const table = document.getElementById("dataTable");
 
       body.innerHTML = "";
       table.style.display = "table";
 
-      rows.forEach(row => {
-        const cols = row.split(",");
+      lines.forEach(line => {
+        const parts = line
+          .match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g)
+          .map(v => v.replace(/^"|"$/g, ""));
+
+        const productName = parts[0];
+        const variant = parts[1];
+        const weightGm = parts[2];
+        const weightKg = parts[3];
+        const sellingPrice = parts[4];
+        const pricePerKg = parts[6];
+
+        const productUrl =
+          parts[parts.length - 1] && parts[parts.length - 1].startsWith("http")
+            ? parts[parts.length - 1]
+            : "https://grambahar.com/products";
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${cols[0]}</td>
-          <td>${cols[1]}</td>
-          <td>${cols[2]}</td>
-          <td>${cols[3]}</td>
-          <td>${cols[4]}</td>
-          <td>${cols[6]}</td>
-          <td><a href="${cols[7]}" target="_blank">View Product</a></td>
+          <td><a href="${productUrl}" target="_blank">${productName}</a></td>
+          <td>${variant}</td>
+          <td>${weightGm}</td>
+          <td>${weightKg}</td>
+          <td>${sellingPrice}</td>
+          <td>${pricePerKg}</td>
+          <td><a href="${productUrl}" target="_blank">View Product</a></td>
         `;
         body.appendChild(tr);
       });
     })
-    .catch(err => alert("CSV not found. Deploy output correctly."));
+    .catch(err => {
+      console.error(err);
+      alert("Failed to load CSV file");
+    });
 }
 </script>
+
+
 
 </body>
 </html>
