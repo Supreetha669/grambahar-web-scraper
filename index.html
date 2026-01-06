@@ -79,7 +79,7 @@ function openGrambahar() {
 }
 
 function showOutput() {
-  fetch("product_variants.csv")
+  fetch("output/product_variants.csv")
     .then(res => res.text())
     .then(csv => {
       const rows = csv.trim().split("\n").slice(1);
