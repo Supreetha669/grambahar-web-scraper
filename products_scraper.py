@@ -7,9 +7,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 import csv, time, os, re
 
 BASE_URL = "https://grambahar.com"
-HOME_URL = BASE_URL              # start from home
 OUTPUT_DIR = "output"
-MAX_PRODUCTS = 100               # change as needed
+MAX_PRODUCTS = 100
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -26,60 +25,50 @@ driver = webdriver.Chrome(
 )
 wait = WebDriverWait(driver, 20)
 
+
 # ------------------ HELPERS ------------------
 def parse_weight(text):
-    """
-    Extract weight in grams from text like '700gm', '1kg', '1.4kg', '700 g'.
-    """
-    m = re.search(r"(\d+(\.\d+)?)\s*(kg|gm|g)", text.lower())
+    """Extract weight in grams from text."""
+    if not text: return 0
+    # Improved regex to handle spaces and various units
+    m = re.search(r"(\d+(\.\d+)?)\s*(kg|gm|g|kilogram|gram)", text.lower())
     if not m:
         return 0
     v = float(m.group(1))
     unit = m.group(3)
-    if unit == "kg":
+    if unit in ["kg", "kilogram"]:
         return v * 1000.0
-    return v  # gm or g
+    return v
+
 
 def to_number(text):
-    text = text.replace("₹", "").replace(",", "").strip()
-    return float(text) if text else 0.0
+    """Clean currency text and convert to float."""
+    # Remove non-numeric except decimal point
+    clean_text = re.sub(r'[^\d.]', '', text.strip())
+    try:
+        return float(clean_text) if clean_text else 0.0
+    except ValueError:
+        return 0.0
+
 
 # ------------------ COLLECT PRODUCT LINKS ------------------
-print("🔍 Collecting product links from site...")
-driver.get(HOME_URL)
-time.sleep(4)
+print(f"🔍 Accessing {BASE_URL}...")
+driver.get(BASE_URL)
+time.sleep(5)
 
 product_urls = set()
 
-# 1) anchors that look like product links (contain '/products/')
+# Strategy 1: Find all internal product links
 anchors = driver.find_elements(By.XPATH, "//a[contains(@href, '/products/')]")
 for a in anchors:
     href = a.get_attribute("href")
-    if href and "/products/" in href:
-        product_urls.add(href)
-
-# 2) optionally, follow a generic 'Shop/Products/Collections' link if present
-try:
-    collections_link = driver.find_element(
-        By.XPATH,
-        "//a[contains(@href, '/collections') or " +
-        "contains(translate(., 'SHOP', 'shop'), 'shop') or " +
-        "contains(translate(., 'PRODUCT', 'product'), 'product')]"
-    )
-    collections_url = collections_link.get_attribute("href")
-    if collections_url:
-        driver.get(collections_url)
-        time.sleep(4)
-        more_anchors = driver.find_elements(By.XPATH, "//a[contains(@href, '/products/')]")
-        for a in more_anchors:
-            href = a.get_attribute("href")
-            if href and "/products/" in href:
-                product_urls.add(href)
-except:
-    pass
+    if href:
+        # Normalize URL (remove query params)
+        clean_href = href.split('?')[0]
+        product_urls.add(clean_href)
 
 product_urls = list(product_urls)[:MAX_PRODUCTS]
-print(f"✅ Found {len(product_urls)} product URLs automatically")
+print(f"✅ Found {len(product_urls)} unique product URLs")
 
 # ------------------ SCRAPE EACH PRODUCT PAGE ------------------
 rows = []
@@ -87,115 +76,104 @@ rows = []
 for url in product_urls:
     try:
         driver.get(url)
-        time.sleep(3)
+        time.sleep(2)  # Slight delay for dynamic pricing to load
 
-        main = wait.until(EC.presence_of_element_located((By.TAG_NAME, "main")))
-
-        # product name (h1 or h2 inside main)
-        name_el = main.find_element(By.XPATH, ".//h1 | .//h2")
-        name = name_el.text.strip()
-
-        # variant / weight text
-        variant_text = ""
+        # Try to find the main container or body
         try:
-            # common pattern: variant button with gm/kg
-            variant_btn = main.find_element(
-                By.XPATH,
-                ".//button[contains(., 'gm') or contains(., 'kg') or contains(., 'g')]"
-            )
-            variant_text = variant_btn.text.strip()
+            main = wait.until(EC.presence_of_element_located((By.TAG_NAME, "main")))
         except:
+            main = driver.find_element(By.TAG_NAME, "body")
+
+        # 1. Product Name
+        try:
+            name = main.find_element(By.XPATH, ".//h1").text.strip()
+        except:
+            name = driver.title.split('-')[0].strip()
+
+        # 2. Variant / Weight
+        variant_text = ""
+        # Look for buttons or labels containing weight units
+        weight_patterns = [
+            ".//button[contains(translate(., 'KMG', 'kmg'), 'gm') or contains(translate(., 'KMG', 'kmg'), 'kg')]",
+            ".//option[contains(., 'gm') or contains(., 'kg')]",
+            ".//*[contains(@class, 'active') or contains(@class, 'selected')]//*[contains(text(), 'g')]"
+        ]
+
+        for xpath in weight_patterns:
             try:
-                # fallback: any element containing gm/kg text
-                size_el = main.find_element(
-                    By.XPATH,
-                    ".//*[contains(text(),'gm') or contains(text(),'kg') or contains(text(),'g')]"
-                )
-                variant_text = size_el.text.strip()
+                el = main.find_element(By.XPATH, xpath)
+                variant_text = el.text.strip()
+                if variant_text: break
             except:
-                variant_text = ""
+                continue
 
         grams = parse_weight(variant_text)
         kg = round(grams / 1000.0, 3) if grams else 0.0
 
-        # prices
-        mrp, price = 0.0, 0.0
-        price_elements = main.find_elements(By.XPATH, ".//*[contains(text(),'₹')]")
+        # 3. Prices
+        # Find elements that look like prices (usually contain currency symbol)
+        price_elements = main.find_elements(By.XPATH, "//*[contains(text(), '₹')]")
+        prices_found = []
+        for p in price_elements:
+            val = to_number(p.text)
+            if val > 0: prices_found.append(val)
 
-        if price_elements:
-            # assume first is MRP, last is selling price
-            mrp = to_number(price_elements[0].text)
-            price = to_number(price_elements[-1].text)
-        else:
-            mrp = price = 0.0
+        # Deduplicate and sort: Highest is likely MRP, Lowest is Selling Price
+        prices_found = sorted(list(set(prices_found)), reverse=True)
 
-        if not price and mrp:
-            price = mrp
+        mrp = prices_found[0] if len(prices_found) > 0 else 0.0
+        price = prices_found[-1] if len(prices_found) > 0 else 0.0
 
-        perkg = round(price / kg, 2) if kg else 0.0
+        perkg = round(price / kg, 2) if kg > 0 else 0.0
 
-        rows.append([
-            name,
-            variant_text,
-            grams,
-            kg,
-            price,
-            mrp,
-            perkg,
-            url
-        ])
-        print("✅ Scraped:", name)
+        rows.append([name, variant_text, grams, kg, price, mrp, perkg, url])
+        print(f"✅ Scraped: {name} | Price: ₹{price}")
+
     except Exception as e:
-        print("❌ Failed:", url, e)
+        print(f"❌ Error on {url}: {e}")
 
-# ------------------ SCRAPE LOGO + CONTACT FROM HOME ------------------
+# ------------------ SCRAPE LOGO + CONTACT ------------------
 driver.get(BASE_URL)
 time.sleep(3)
 
-# Logo URL only (for sitelogo.csv)
 logo_url = ""
 try:
-    logo = driver.find_element(
-        By.XPATH,
-        "//img[contains(@alt,'Logo') or contains(@src, 'logo')]"
-    )
-    logo_url = logo.get_attribute("src") or ""
+    # Broad search for logo images
+    logo_el = driver.find_element(By.XPATH,
+                                  "//img[contains(@class, 'logo') or contains(@src, 'logo') or contains(@alt, 'Logo')]")
+    logo_url = logo_el.get_attribute("src")
 except:
     print("⚠️ Logo not found")
 
-# Contact info from full body text
 body_text = driver.find_element(By.TAG_NAME, "body").text
 emails = set(re.findall(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}", body_text))
-phones = set(re.findall(r"\+91[-\s]?\d{10}|\b\d{10}\b", body_text))
+phones = set(re.findall(r"(?:\+91|0)?\s?\d{10,12}", body_text))
 
 driver.quit()
 
+
 # ------------------ SAVE CSVs ------------------
-# Products
-with open(f"{OUTPUT_DIR}/product_variants.csv", "w", newline="", encoding="utf-8") as f:
-    w = csv.writer(f)
-    w.writerow([
-        "Product Name",
-        "Variant",
-        "Weight (gm)",
-        "Weight (kg)",
-        "Selling Price (₹)",
-        "Original Price (₹)",
-        "Price per kg (₹)",
-        "Product URL"
-    ])
-    w.writerows(rows)
+def save_csv(filename, header, data):
+    with open(f"{OUTPUT_DIR}/{filename}", "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(header)
+        if isinstance(data[0], list):
+            w.writerows(data)
+        else:
+            w.writerow(data)
 
-# Contact info (if you still want it)
-with open(f"{OUTPUT_DIR}/contact_info.csv", "w", newline="", encoding="utf-8") as f:
-    w = csv.writer(f)
-    w.writerow(["Brand Name", "Emails", "Phones"])
-    w.writerow(["Grambahar", ", ".join(emails), ", ".join(phones)])
 
-# Site logo CSV with only logo URL
-with open(f"{OUTPUT_DIR}/sitelogo.csv", "w", newline="", encoding="utf-8") as f:
-    w = csv.writer(f)
-    w.writerow(["Brand Name", "Logo URL"])
-    w.writerow(["Grambahar", logo_url])
+save_csv("product_variants.csv",
+         ["Product Name", "Variant", "Weight (gm)", "Weight (kg)", "Selling Price (₹)", "Original Price (₹)",
+          "Price per kg (₹)", "Product URL"],
+         rows)
 
-print("\n🎉 DONE: Products + contact_info.csv + sitelogo.csv (logo URL only)")
+save_csv("contact_info.csv",
+         ["Brand Name", "Emails", "Phones"],
+         ["Grambahar", ", ".join(emails), ", ".join(phones)])
+
+save_csv("sitelogo.csv",
+         ["Brand Name", "Logo URL"],
+         ["Grambahar", logo_url])
+
+print(f"\n🎉 Extraction Complete. Check the '{OUTPUT_DIR}' folder.")

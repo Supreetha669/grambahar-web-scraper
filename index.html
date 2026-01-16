@@ -1,111 +1,47 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Grambahar Scraper (CI + CD)</title>
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 40px;
-    }
-
-    button {
-      padding: 12px 22px;
-      font-size: 16px;
-      margin-right: 12px;
-      cursor: pointer;
-      background: #0d6efd;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-    }
-
-    button:hover {
-      background: #084298;
-    }
-
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 30px;
-      display: none;
-    }
-
-    th, td {
-      border: 1px solid #ccc;
-      padding: 10px;
-      text-align: left;
-    }
-
-    th {
-      background: #f3f3f3;
-    }
-
-    a {
-      color: #0d6efd;
-      text-decoration: none;
-      font-weight: 500;
-    }
-  </style>
+    <title>Universal Web Extractor</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 50px; background: #f4f7f6; }
+        .container { max-width: 600px; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        input { width: 70%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; }
+        button { padding: 12px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #218838; }
+        .status { margin-top: 20px; color: #666; font-style: italic; }
+    </style>
 </head>
-
 <body>
 
-<h1>Grambahar Scraper (CI + CD)</h1>
-<p>Scraped product data with live product links.</p>
+<div class="container">
+    <h2>Universal Web Extractor</h2>
+    <p>Enter a URL to extract logo, contact info, and services to CSV.</p>
 
-<button onclick="showOutput()">Show Extracted Output</button>
-<button onclick="openGrambahar()">Open Grambahar Website</button>
+    <input type="text" id="targetUrl" placeholder="https://example.com">
+    <button onclick="startScrape()">Run & Export</button>
 
-<table id="dataTable">
-  <thead>
-    <tr>
-      <th>Product Name</th>
-      <th>Variant</th>
-      <th>Weight (gm)</th>
-      <th>Weight (kg)</th>
-      <th>Selling Price (₹)</th>
-      <th>Price / kg (₹)</th>
-      <th>Product Page</th>
-    </tr>
-  </thead>
-  <tbody id="tableBody"></tbody>
-</table>
+    <div id="statusMessage" class="status"></div>
+</div>
 
 <script>
-function openGrambahar() {
-  window.open("https://grambahar.com", "_blank");
-}
+async function startScrape() {
+    const url = document.getElementById('targetUrl').value;
+    const status = document.getElementById('statusMessage');
 
-function showOutput() {
-  fetch("http://127.0.0.1:8000/products")
-    .then(res => res.json())
-    .then(data => {
-      const body = document.getElementById("tableBody");
-      const table = document.getElementById("dataTable");
+    if (!url) {
+        alert("Please enter a URL");
+        return;
+    }
 
-      body.innerHTML = "";
-      table.style.display = "table";
+    status.innerText = "Extracting data... please wait.";
 
-      // assuming FastAPI returns: { "products": [ { "Product Name": "...", ... } ] }
-      data.products.forEach(p => {
-        const tr = document.createElement("tr");
-
-        tr.innerHTML = `
-          <td><a href="${p["Product URL"]}" target="_blank">${p["Product Name"]}</a></td>
-          <td>${p["Variant"]}</td>
-          <td>${p["Weight (gm)"]}</td>
-          <td>${p["Weight (kg)"]}</td>
-          <td>${p["Selling Price (₹)"]}</td>
-          <td>${p["Price per kg (₹)"]}</td>
-          <td><a href="${p["Product URL"]}" target="_blank">View Product</a></td>
-        `;
-
-        body.appendChild(tr);
-      });
-    })
-    .catch(() => alert("API not reachable. Is FastAPI running?"));
+    // Pointing to your FastAPI backend
+    try {
+        window.location.href = `http://127.0.0.1:8000/scrape?url=${encodeURIComponent(url)}`;
+        status.innerText = "Download started!";
+    } catch (error) {
+        status.innerText = "Error connecting to backend.";
+    }
 }
 </script>
 

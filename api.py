@@ -1,48 +1,54 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import subprocess
-import csv
-import sys   # 👈 added
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import io
+from fastapi.responses import StreamingResponse
 
 app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Allow your HTML to talk to the Python backend
+app.add_middleware(CORSMiddleware, allow_origins=["*"])
 
-@app.get("/")
-def root():
-    return {"status": "API is running"}
 
-@app.get("/products")
-def get_products():
-    products = []
-    with open("output/product_variants.csv", newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            products.append(row)
-    return {"products": products}
+@app.get("/scrape")
+def scrape_site(url: str):
+    try:
+        header = {"User-Agent": "Mozilla/5.0"}
+        response = requests.get(url, headers=header, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
 
-# ✅ FIXED ENDPOINT
-@app.post("/scrape")
-def scrape_products():
-    result = subprocess.run(
-        [sys.executable, "products_scraper.py"],
-        capture_output=True,
-        text=True
-    )
+        # 1. Extract Logo
+        logo = soup.find('img', {'src': True})['src'] if soup.find('img') else "Not found"
 
-    if result.returncode != 0:
-        return {
-            "status": "failed",
-            "stdout": result.stdout,
-            "stderr": result.stderr
-        }
+        # 2. Extract Basic Contacts (Simple Example)
+        email = "None"
+        if "mailto:" in response.text:
+            email = response.text.split('mailto:')[1].split('"')[0]
 
-    return {
-        "status": "success",
-        "stdout": result.stdout
-    }
+        # 3. Extract Meta Info (Services/Description)
+        desc = soup.find("meta", {"name": "description"})
+        services = desc["content"] if desc else "No description found"
+
+        # Create Data Structure
+        data = [{
+            "Website": url,
+            "Logo URL": logo,
+            "Contact Email": email,
+            "Description/Services": services
+        }]
+
+        # Convert to CSV in memory
+        df = pd.DataFrame(data)
+        stream = io.StringIO()
+        df.to_csv(stream, index=False)
+
+        return StreamingResponse(
+            io.BytesIO(stream.getvalue().encode()),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=extract.csv"}
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
